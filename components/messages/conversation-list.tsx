@@ -1,0 +1,134 @@
+'use client';
+
+import Link from 'next/link';
+import { Building2, Users } from 'lucide-react';
+
+interface Conversation {
+  id: string;
+  created_at: string;
+  collaborations: {
+    id: string;
+    applications: {
+      creator_profiles: {
+        profiles: {
+          id: string;
+          full_name: string | null;
+          avatar_url: string | null;
+        };
+      };
+      saas_companies: {
+        company_name: string;
+        logo_url: string | null;
+        profiles: {
+          id: string;
+          full_name: string | null;
+          avatar_url: string | null;
+        };
+      };
+    };
+  };
+}
+
+interface ConversationListProps {
+  conversations: Conversation[];
+  activeConversationId?: string;
+  currentUserId: string;
+}
+
+export default function ConversationList({ 
+  conversations, 
+  activeConversationId,
+  currentUserId 
+}: ConversationListProps) {
+  
+  const getPartner = (conversation: Conversation) => {
+    const app = conversation.collaborations?.applications;
+    if (!app) return null;
+
+    const creatorProfileId = app.creator_profiles?.profiles?.id;
+    const saasProfileId = app.saas_companies?.profiles?.id;
+
+    // If current user is the creator, show the SaaS company
+    if (creatorProfileId === currentUserId) {
+      return {
+        name: app.saas_companies?.company_name || 'Entreprise',
+        avatar: app.saas_companies?.logo_url,
+        type: 'saas' as const,
+      };
+    }
+    
+    // If current user is the SaaS, show the creator
+    return {
+      name: app.creator_profiles?.profiles?.full_name || 'Créateur',
+      avatar: app.creator_profiles?.profiles?.avatar_url,
+      type: 'creator' as const,
+    };
+  };
+
+  return (
+    <div className="h-full bg-[#0A0C10] border border-white/10 rounded-2xl overflow-hidden">
+      <div className="p-4 border-b border-white/10">
+        <h3 className="font-medium text-white">Conversations</h3>
+      </div>
+
+      <div className="overflow-y-auto h-[calc(100%-60px)]">
+        {conversations.length > 0 ? (
+          <div className="divide-y divide-white/5">
+            {conversations.map((conversation) => {
+              const partner = getPartner(conversation);
+              const isActive = conversation.id === activeConversationId;
+
+              return (
+                <Link
+                  key={conversation.id}
+                  href={`/dashboard/messages?conversation=${conversation.id}`}
+                  className={`flex items-center gap-3 p-4 hover:bg-white/5 transition-colors ${
+                    isActive ? 'bg-white/5' : ''
+                  }`}
+                >
+                  {/* Avatar */}
+                  {partner?.avatar ? (
+                    <img 
+                      src={partner.avatar} 
+                      alt={partner.name}
+                      className="w-10 h-10 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                      partner?.type === 'saas' 
+                        ? 'bg-blue-500/10 border border-blue-500/20' 
+                        : 'bg-purple-500/10 border border-purple-500/20'
+                    }`}>
+                      {partner?.type === 'saas' ? (
+                        <Building2 className="w-5 h-5 text-blue-400" />
+                      ) : (
+                        <Users className="w-5 h-5 text-purple-400" />
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-medium text-white text-sm truncate">
+                      {partner?.name}
+                    </h4>
+                    <p className="text-xs text-slate-500 truncate">
+                      Collaboration active
+                    </p>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="flex items-center justify-center h-full p-4">
+            <p className="text-sm text-slate-500 text-center">
+              Aucune conversation.<br />
+              Les conversations sont créées automatiquement lors de l'acceptation d'une candidature.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+

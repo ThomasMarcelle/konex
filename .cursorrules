@@ -1,0 +1,30 @@
+{
+  "project_name": "Konex",
+  "tech_stack": {
+    "framework": "Next.js 14+ (App Router)",
+    "language": "TypeScript",
+    "styling": "Tailwind CSS",
+    "database": "Supabase (PostgreSQL)",
+    "auth": "Supabase Auth",
+    "payments": "Stripe Connect"
+  },
+  "rules": [
+    "Always use TypeScript strict mode. Avoid 'any'.",
+    "Use Next.js App Router conventions (Server Components by default).",
+    "Use 'use client' directive only when necessary for interactivity.",
+    "Use Tailwind CSS for styling. Use 'cn' utility for conditional classes.",
+    "Follow the project structure: /app, /components, /lib, /types, /docs.",
+    "Ensure all components are responsive and accessible.",
+    "Use Supabase SSR package for database interactions.",
+    "Keep business logic in /lib or server actions, not in UI components.",
+    "Document complex logic and new features in /docs."
+  ],
+  "structure": {
+    "app": "Routes and layouts",
+    "components": "Reusable UI components",
+    "lib": "Utilities, helpers, and configuration",
+    "types": "TypeScript type definitions",
+    "docs": "Project documentation"
+  }
+}
+

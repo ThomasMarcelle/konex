@@ -1,0 +1,164 @@
+'use client';
+
+import { useState } from 'react';
+import { ExternalLink, CheckCircle2, Clock, Loader2, Linkedin } from 'lucide-react';
+import { validatePost } from '@/app/(dashboard)/dashboard/collaborations/[id]/actions';
+
+interface Post {
+  id: string;
+  linkedin_post_url: string;
+  screenshot_url: string | null;
+  submitted_at: string;
+  validated: boolean;
+  validated_at: string | null;
+}
+
+interface PostCardProps {
+  post: Post;
+  canValidate: boolean;
+}
+
+export default function PostCard({ post, canValidate }: PostCardProps) {
+  const [isValidating, setIsValidating] = useState(false);
+  const [validated, setValidated] = useState(post.validated);
+
+  const handleValidate = async () => {
+    setIsValidating(true);
+    const result = await validatePost(post.id);
+    if (result.success) {
+      setValidated(true);
+    }
+    setIsValidating(false);
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  // Extract post ID for embed
+  const getEmbedId = (url: string): string => {
+    try {
+      if (url.includes('activity-')) {
+        const match = url.match(/activity-(\d+)/);
+        if (match) return `urn:li:activity:${match[1]}`;
+      }
+      if (url.includes('urn:li:activity:')) {
+        const match = url.match(/urn:li:activity:(\d+)/);
+        if (match) return `urn:li:activity:${match[1]}`;
+      }
+      if (url.includes('urn:li:share:')) {
+        const match = url.match(/urn:li:share:(\d+)/);
+        if (match) return `urn:li:share:${match[1]}`;
+      }
+      return '';
+    } catch {
+      return '';
+    }
+  };
+
+  const embedId = getEmbedId(post.linkedin_post_url);
+
+  return (
+    <div className={`bg-[#0A0C10] border rounded-2xl overflow-hidden ${
+      validated ? 'border-green-500/20' : 'border-white/10'
+    }`}>
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b border-white/5">
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+            validated ? 'bg-green-500/10' : 'bg-[#0A66C2]/10'
+          }`}>
+            {validated ? (
+              <CheckCircle2 className="w-5 h-5 text-green-400" />
+            ) : (
+              <Linkedin className="w-5 h-5 text-[#0A66C2]" />
+            )}
+          </div>
+          <div>
+            <div className="text-sm font-medium text-white">
+              {validated ? 'Post validé' : 'Post en attente'}
+            </div>
+            <div className="text-xs text-slate-500">
+              Soumis le {formatDate(post.submitted_at)}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <a
+            href={post.linkedin_post_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-slate-300 rounded-lg text-sm transition-colors"
+          >
+            <ExternalLink className="w-4 h-4" />
+            Ouvrir
+          </a>
+          
+          {canValidate && !validated && (
+            <button
+              onClick={handleValidate}
+              disabled={isValidating}
+              className="flex items-center gap-2 px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white rounded-lg text-sm transition-colors disabled:opacity-50"
+            >
+              {isValidating ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <CheckCircle2 className="w-4 h-4" />
+              )}
+              Valider
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* LinkedIn Embed */}
+      <div className="p-4">
+        {embedId ? (
+          <iframe
+            src={`https://www.linkedin.com/embed/feed/update/${embedId}`}
+            height="400"
+            width="100%"
+            frameBorder="0"
+            allowFullScreen
+            title="LinkedIn Post"
+            className="rounded-lg bg-white"
+          />
+        ) : (
+          <div className="aspect-video bg-gradient-to-br from-[#0A66C2]/10 to-blue-500/5 rounded-lg flex flex-col items-center justify-center border border-white/5">
+            <Linkedin className="w-12 h-12 text-[#0A66C2] mb-3" />
+            <p className="text-slate-400 text-sm text-center">
+              Cliquez sur "Ouvrir" pour voir le post sur LinkedIn
+            </p>
+            <a
+              href={post.linkedin_post_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 flex items-center gap-2 px-4 py-2 bg-[#0A66C2] hover:bg-[#004182] text-white rounded-lg text-sm transition-colors"
+            >
+              <ExternalLink className="w-4 h-4" />
+              Voir sur LinkedIn
+            </a>
+          </div>
+        )}
+      </div>
+
+      {/* Validated Footer */}
+      {validated && post.validated_at && (
+        <div className="px-4 pb-4">
+          <div className="flex items-center gap-2 text-xs text-green-400 bg-green-500/10 rounded-lg px-3 py-2">
+            <CheckCircle2 className="w-4 h-4" />
+            Validé le {formatDate(post.validated_at)}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+

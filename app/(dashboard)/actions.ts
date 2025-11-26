@@ -1,0 +1,209 @@
+'use server'
+
+import { createClient } from '@/lib/supabase/server'
+import { revalidatePath } from 'next/cache'
+
+export async function completeSaasOnboarding(formData: FormData) {
+  const supabase = await createClient()
+  
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: 'Non authentifié' }
+  }
+
+  const companyName = formData.get('companyName') as string
+  const description = formData.get('description') as string
+  const website = formData.get('website') as string
+  const industry = formData.get('industry') as string
+  const commissionRate = parseFloat(formData.get('commissionRate') as string) || 0
+  const conditions = formData.get('conditions') as string
+  const mediaPackUrl = formData.get('mediaPackUrl') as string | null
+
+  // Check if company already exists
+  const { data: existingCompany } = await supabase
+    .from('saas_companies')
+    .select('id')
+    .eq('profile_id', user.id)
+    .single()
+
+  if (existingCompany) {
+    // Update existing company
+    const { error } = await supabase
+      .from('saas_companies')
+      .update({
+        company_name: companyName,
+        description,
+        website,
+        industry,
+        commission_rate: commissionRate,
+        conditions,
+        media_pack_url: mediaPackUrl,
+      })
+      .eq('profile_id', user.id)
+
+    if (error) {
+      return { error: error.message }
+    }
+  } else {
+    // Create new company
+    const { error } = await supabase
+      .from('saas_companies')
+      .insert({
+        profile_id: user.id,
+        company_name: companyName,
+        description,
+        website,
+        industry,
+        commission_rate: commissionRate,
+        conditions,
+        media_pack_url: mediaPackUrl,
+      })
+
+    if (error) {
+      return { error: error.message }
+    }
+  }
+
+  // Mark onboarding as completed
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .update({ onboarding_completed: true })
+    .eq('id', user.id)
+
+  if (profileError) {
+    return { error: profileError.message }
+  }
+
+  revalidatePath('/dashboard')
+  return { success: true }
+}
+
+export async function completeCreatorOnboarding(formData: FormData) {
+  const supabase = await createClient()
+  
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: 'Non authentifié' }
+  }
+
+  const bio = formData.get('bio') as string
+  const linkedinUrl = formData.get('linkedinUrl') as string
+  const followersCount = parseInt(formData.get('followersCount') as string) || 0
+  const engagementRate = parseFloat(formData.get('engagementRate') as string) || 0
+  const expertiseSectorsRaw = formData.get('expertiseSectors') as string
+  const expertiseSectors = expertiseSectorsRaw ? expertiseSectorsRaw.split(',').map(s => s.trim()) : []
+  const hourlyRate = parseInt(formData.get('hourlyRate') as string) || null
+
+  // Check if creator profile already exists
+  const { data: existingProfile } = await supabase
+    .from('creator_profiles')
+    .select('id')
+    .eq('profile_id', user.id)
+    .single()
+
+  if (existingProfile) {
+    // Update existing profile
+    const { error } = await supabase
+      .from('creator_profiles')
+      .update({
+        bio,
+        linkedin_url: linkedinUrl,
+        followers_count: followersCount,
+        engagement_rate: engagementRate,
+        expertise_sectors: expertiseSectors,
+        hourly_rate: hourlyRate,
+      })
+      .eq('profile_id', user.id)
+
+    if (error) {
+      return { error: error.message }
+    }
+  } else {
+    // Create new profile
+    const { error } = await supabase
+      .from('creator_profiles')
+      .insert({
+        profile_id: user.id,
+        bio,
+        linkedin_url: linkedinUrl,
+        followers_count: followersCount,
+        engagement_rate: engagementRate,
+        expertise_sectors: expertiseSectors,
+        hourly_rate: hourlyRate,
+      })
+
+    if (error) {
+      return { error: error.message }
+    }
+  }
+
+  // Mark onboarding as completed
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .update({ onboarding_completed: true })
+    .eq('id', user.id)
+
+  if (profileError) {
+    return { error: profileError.message }
+  }
+
+  revalidatePath('/dashboard')
+  return { success: true }
+}
+
+export async function uploadMediaPack(formData: FormData) {
+  const supabase = await createClient()
+  
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: 'Non authentifié', url: null }
+  }
+
+  const file = formData.get('file') as File
+  if (!file) {
+    return { error: 'Aucun fichier fourni', url: null }
+  }
+
+  const fileExt = file.name.split('.').pop()
+  const fileName = `${user.id}/media-pack-${Date.now()}.${fileExt}`
+
+  const { error, data } = await supabase.storage
+    .from('media-packs')
+    .upload(fileName, file, {
+      cacheControl: '3600',
+      upsert: true
+    })
+
+  if (error) {
+    return { error: error.message, url: null }
+  }
+
+  const { data: { publicUrl } } = supabase.storage
+    .from('media-packs')
+    .getPublicUrl(fileName)
+
+  return { success: true, url: publicUrl }
+}
+
+export async function getCurrentUserProfile() {
+  const supabase = await createClient()
+  
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return null
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
+    .single()
+
+  return profile
+}
+
+export async function signOut() {
+  const supabase = await createClient()
+  await supabase.auth.signOut()
+}
+
