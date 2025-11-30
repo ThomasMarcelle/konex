@@ -30,15 +30,24 @@ export default function SubmitPostForm({ collaborationId }: SubmitPostFormProps)
     setIsLoading(true);
     setError(null);
 
-    const result = await submitPost(collaborationId, url);
+    try {
+      const result = await submitPost(collaborationId, url);
 
-    if (result.error) {
-      setError(result.error);
-    } else {
-      setSuccess(true);
-      setUrl('');
-      // Reset success after 3 seconds
-      setTimeout(() => setSuccess(false), 3000);
+      if (result.error) {
+        console.error('Submit error:', result.error);
+        setError(result.error);
+      } else {
+        setSuccess(true);
+        setUrl('');
+        // Reset success after 3 seconds and reload page
+        setTimeout(() => {
+          setSuccess(false);
+          window.location.reload();
+        }, 2000);
+      }
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      setError('Une erreur inattendue s\'est produite. Vérifiez les permissions dans Supabase.');
     }
 
     setIsLoading(false);
