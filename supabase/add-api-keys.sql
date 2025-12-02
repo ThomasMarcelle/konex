@@ -32,3 +32,4 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- Note: In production, you should generate API keys on-demand when a SaaS
 -- enables conversion tracking, not automatically for all companies.
 
+a
