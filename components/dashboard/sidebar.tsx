@@ -16,15 +16,18 @@ import {
   GraduationCap,
 } from "lucide-react";
 import { forceLogout } from "@/lib/auth-utils";
+import UnreadBadge from "./unread-badge";
 
 interface SidebarProps {
   role: string;
   onboardingCompleted: boolean;
+  userId: string;
 }
 
 export default function DashboardSidebar({
   role,
   onboardingCompleted,
+  userId,
 }: SidebarProps) {
   const pathname = usePathname();
   const isCreator = role === "influencer";
@@ -122,10 +125,13 @@ export default function DashboardSidebar({
 
         <Link
           href="/dashboard/messages"
-          className={linkClass("/dashboard/messages")}
+          className={`${linkClass("/dashboard/messages")} justify-between`}
         >
-          <MessageSquare className="w-5 h-5" />
-          <span className="text-sm">Messages</span>
+          <div className="flex items-center gap-3">
+            <MessageSquare className="w-5 h-5" />
+            <span className="text-sm">Messages</span>
+          </div>
+          <UnreadBadge userId={userId} />
         </Link>
 
         <Link

@@ -83,3 +83,46 @@ export async function getMessages(conversationId: string) {
   return { messages: messages || [], currentUserId: user.id }
 }
 
+export async function markAsRead(conversationId: string) {
+  const supabase = await createClient()
+  
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: 'Non authentifié' }
+  }
+
+  try {
+    // First try the database function
+    const { error: rpcError } = await supabase.rpc('mark_messages_as_read', {
+      p_conversation_id: conversationId,
+      p_user_id: user.id
+    })
+
+    if (!rpcError) {
+      revalidatePath('/dashboard/messages')
+      return { success: true }
+    }
+    
+    // Fallback: direct update if function doesn't exist
+    const { error } = await supabase
+      .from('messages')
+      .update({ read_at: new Date().toISOString() })
+      .eq('conversation_id', conversationId)
+      .neq('sender_id', user.id)
+      .is('read_at', null)
+
+    if (error) {
+      // If read_at column doesn't exist, just ignore
+      if (!error.message.includes('read_at')) {
+        console.error('Error marking messages as read:', error)
+      }
+    }
+  } catch (err) {
+    // Silently fail if the feature isn't set up yet
+    console.error('markAsRead error:', err)
+  }
+
+  revalidatePath('/dashboard/messages')
+  return { success: true }
+}
+

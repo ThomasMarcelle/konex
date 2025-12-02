@@ -1,7 +1,9 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Building2, Users } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 
 interface Conversation {
   id: string;
@@ -35,18 +37,90 @@ interface ConversationListProps {
   currentUserId: string;
 }
 
+const LAST_VIEWED_PREFIX = 'konex_conv_last_viewed_';
+
 export default function ConversationList({ 
   conversations, 
   activeConversationId,
   currentUserId 
 }: ConversationListProps) {
-  
+  const [unreadConversations, setUnreadConversations] = useState<Set<string>>(new Set());
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+
+    const supabase = createClient();
+
+    const checkUnreadMessages = async () => {
+      const unread = new Set<string>();
+
+      for (const conv of conversations) {
+        const lastViewed = localStorage.getItem(`${LAST_VIEWED_PREFIX}${conv.id}`);
+        const lastViewedDate = lastViewed ? new Date(lastViewed) : new Date(0);
+
+        const { count } = await supabase
+          .from('messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('conversation_id', conv.id)
+          .neq('sender_id', currentUserId)
+          .gt('created_at', lastViewedDate.toISOString());
+
+        if (count && count > 0) {
+          unread.add(conv.id);
+        }
+      }
+
+      setUnreadConversations(unread);
+    };
+
+    checkUnreadMessages();
+
+    // Real-time subscription for new messages
+    const channel = supabase
+      .channel('conversation-unread')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+        },
+        (payload) => {
+          const newMessage = payload.new as any;
+          if (newMessage.sender_id !== currentUserId && newMessage.conversation_id !== activeConversationId) {
+            setUnreadConversations(prev => new Set([...prev, newMessage.conversation_id]));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [mounted, conversations, currentUserId, activeConversationId]);
+
+  // Mark conversation as read when it becomes active
+  useEffect(() => {
+    if (!mounted || !activeConversationId) return;
+
+    localStorage.setItem(`${LAST_VIEWED_PREFIX}${activeConversationId}`, new Date().toISOString());
+    setUnreadConversations(prev => {
+      const next = new Set(prev);
+      next.delete(activeConversationId);
+      return next;
+    });
+  }, [activeConversationId, mounted]);
+
   const getPartner = (conversation: Conversation) => {
     const app = conversation.collaborations?.applications;
     if (!app) return null;
 
     const creatorProfileId = app.creator_profiles?.profiles?.id;
-    const saasProfileId = app.saas_companies?.profiles?.id;
 
     // If current user is the creator, show the SaaS company
     if (creatorProfileId === currentUserId) {
@@ -77,6 +151,7 @@ export default function ConversationList({
             {conversations.map((conversation) => {
               const partner = getPartner(conversation);
               const isActive = conversation.id === activeConversationId;
+              const hasUnread = mounted && unreadConversations.has(conversation.id);
 
               return (
                 <Link
@@ -108,11 +183,11 @@ export default function ConversationList({
                   )}
 
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-white text-sm truncate">
+                    <h4 className={`text-sm truncate ${hasUnread ? 'font-semibold text-white' : 'font-medium text-white'}`}>
                       {partner?.name}
                     </h4>
-                    <p className="text-xs text-slate-500 truncate">
-                      Collaboration active
+                    <p className={`text-xs truncate ${hasUnread ? 'text-blue-400' : 'text-slate-500'}`}>
+                      {hasUnread ? 'Nouveau message' : 'Collaboration active'}
                     </p>
                   </div>
                 </Link>

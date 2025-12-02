@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Send, Loader2 } from 'lucide-react';
 import { sendMessage, getMessages } from '@/app/(dashboard)/dashboard/messages/actions';
+import { createClient } from '@/lib/supabase/client';
 
 interface Message {
   id: string;
@@ -23,9 +24,11 @@ interface ChatViewProps {
     full_name: string | null;
     avatar_url: string | null;
   };
+  partnerName?: string | null;
+  partnerAvatar?: string | null;
 }
 
-export default function ChatView({ conversationId, currentUser }: ChatViewProps) {
+export default function ChatView({ conversationId, currentUser, partnerName, partnerAvatar }: ChatViewProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -34,7 +37,54 @@ export default function ChatView({ conversationId, currentUser }: ChatViewProps)
 
   useEffect(() => {
     loadMessages();
-  }, [conversationId]);
+
+    // Set up real-time subscription for new messages
+    const supabase = createClient();
+    
+    const channel = supabase
+      .channel(`messages:${conversationId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        async (payload) => {
+          const newMsg = payload.new as any;
+          
+          // Don't add if it's our own message (we already added it optimistically)
+          if (newMsg.sender_id === currentUser.id) return;
+          
+          // Fetch the sender's profile
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('id, full_name, avatar_url')
+            .eq('id', newMsg.sender_id)
+            .single();
+          
+          const messageWithProfile: Message = {
+            ...newMsg,
+            profiles: profile || { id: newMsg.sender_id, full_name: partnerName, avatar_url: partnerAvatar }
+          };
+          
+          setMessages((prev) => {
+            // Check if message already exists
+            if (prev.some(m => m.id === newMsg.id)) return prev;
+            return [...prev, messageWithProfile];
+          });
+          
+          // Mark as read since we're viewing the conversation
+          markAsRead(conversationId);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [conversationId, currentUser.id, partnerName, partnerAvatar]);
 
   useEffect(() => {
     scrollToBottom();

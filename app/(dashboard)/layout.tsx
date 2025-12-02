@@ -33,6 +33,7 @@ export default async function DashboardLayout({
       <DashboardSidebar 
         role={profile?.role || 'saas'} 
         onboardingCompleted={profile?.onboarding_completed || false}
+        userId={user.id}
       />
       <main className="flex-1 ml-64">
         <DashboardHeader 

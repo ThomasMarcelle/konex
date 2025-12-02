@@ -74,6 +74,30 @@ export default async function MessagesPage({ searchParams }: PageProps) {
   const activeConversationId = conversationParam;
   const activeConversation = conversations.find(c => c.id === activeConversationId);
 
+  // Get partner info for the active conversation
+  const getPartnerInfo = (conversation: any) => {
+    const app = conversation?.collaborations?.applications;
+    if (!app) return { name: null, avatar: null };
+
+    const creatorProfileId = app.creator_profiles?.profiles?.id;
+    
+    // If current user is the creator, show the SaaS company
+    if (creatorProfileId === user.id) {
+      return {
+        name: app.saas_companies?.company_name || 'Entreprise',
+        avatar: app.saas_companies?.logo_url,
+      };
+    }
+    
+    // If current user is the SaaS, show the creator
+    return {
+      name: app.creator_profiles?.profiles?.full_name || 'Créateur',
+      avatar: app.creator_profiles?.profiles?.avatar_url,
+    };
+  };
+
+  const partnerInfo = activeConversation ? getPartnerInfo(activeConversation) : { name: null, avatar: null };
+
   return (
     <div className="h-[calc(100vh-8rem)] flex gap-6">
       {/* Conversations List */}
@@ -95,6 +119,8 @@ export default async function MessagesPage({ searchParams }: PageProps) {
               full_name: profile.full_name,
               avatar_url: profile.avatar_url,
             }}
+            partnerName={partnerInfo.name}
+            partnerAvatar={partnerInfo.avatar}
           />
         ) : (
           <div className="h-full flex items-center justify-center bg-[#0A0C10] border border-white/10 rounded-2xl">
