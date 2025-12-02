@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Link as LinkIcon, Copy, Check, ExternalLink, TrendingUp, Eye, MousePointerClick, DollarSign } from 'lucide-react';
+import { Link as LinkIcon, Copy, Check, ExternalLink, Eye, MousePointerClick, DollarSign, AlertCircle, BarChart3 } from 'lucide-react';
 
 interface TrackingLinkCardProps {
   hash: string;
@@ -45,29 +45,37 @@ export default function TrackingLinkCardV2({
     }
   };
 
+  // Calculate active metrics count for grid layout
+  const activeMetrics = [trackImpressions, trackClicks, trackRevenue].filter(Boolean).length;
+  const gridCols = activeMetrics === 3 ? 'grid-cols-3' : activeMetrics === 2 ? 'grid-cols-2' : 'grid-cols-1';
+
   return (
-    <div className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20 rounded-2xl p-6">
+    <div className={`border rounded-2xl p-6 ${isCreator ? 'bg-gradient-to-br from-blue-500/10 to-purple-500/10 border-blue-500/20' : 'bg-gradient-to-br from-slate-500/10 to-slate-600/10 border-slate-500/20'}`}>
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
-            <LinkIcon className="w-5 h-5 text-blue-400" />
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isCreator ? 'bg-blue-500/20' : 'bg-slate-500/20'}`}>
+            {isCreator ? (
+              <LinkIcon className="w-5 h-5 text-blue-400" />
+            ) : (
+              <BarChart3 className="w-5 h-5 text-slate-400" />
+            )}
           </div>
           <div>
             <h3 className="text-lg font-medium text-white">
-              {isCreator ? 'Ton Lien Tracké' : 'Lien Tracké du Créateur'}
+              {isCreator ? 'Ton Lien Tracké' : 'Performance du Créateur'}
             </h3>
             <p className="text-xs text-slate-400">
               {isCreator 
                 ? 'Utilise ce lien dans tes posts, bio, et commentaires'
-                : 'Lien unique pour suivre le trafic généré'}
+                : 'Statistiques de trafic et conversions générées'}
             </p>
           </div>
         </div>
       </div>
 
       {/* Metrics Grid */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className={`grid ${gridCols} gap-4 ${isCreator ? 'mb-6' : ''}`}>
         {/* Impressions */}
         {trackImpressions && (
           <div className="bg-[#0A0C10] border border-white/10 rounded-xl p-4">
@@ -102,97 +110,77 @@ export default function TrackingLinkCardV2({
         )}
       </div>
 
-      {/* Tracking Link Display */}
-      <div className="bg-[#0A0C10] border border-white/10 rounded-xl p-4 mb-4">
-        <div className="flex items-center gap-3">
-          <div className="flex-1 font-mono text-sm text-slate-300 break-all">
-            {trackingUrl}
-          </div>
-          <button
-            onClick={handleCopy}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
-          >
-            {copied ? (
-              <>
-                <Check className="w-4 h-4" />
-                Copié !
-              </>
-            ) : (
-              <>
-                <Copy className="w-4 h-4" />
-                Copier
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* Instructions for Creator */}
+      {/* === CREATOR ONLY SECTION === */}
       {isCreator && (
-        <div className="space-y-2 mb-4">
-          <p className="text-sm text-slate-400 font-medium">💡 Comment l'utiliser :</p>
-          <ul className="space-y-1.5 text-xs text-slate-500">
-            <li className="flex items-start gap-2">
-              <span className="text-blue-400 mt-0.5">•</span>
-              <span>Ajoute-le en <strong className="text-slate-400">premier commentaire</strong> de tes posts LinkedIn</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-blue-400 mt-0.5">•</span>
-              <span>Mets-le dans ta <strong className="text-slate-400">bio LinkedIn</strong> (section "À propos")</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-blue-400 mt-0.5">•</span>
-              <span>Partage-le en <strong className="text-slate-400">DM</strong> quand on te demande le produit</span>
-            </li>
-            {trackImpressions && (
+        <>
+          {/* Tracking Link Display */}
+          <div className="bg-[#0A0C10] border border-white/10 rounded-xl p-4 mb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex-1 font-mono text-sm text-slate-300 break-all">
+                {trackingUrl}
+              </div>
+              <button
+                onClick={handleCopy}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
+              >
+                {copied ? (
+                  <>
+                    <Check className="w-4 h-4" />
+                    Copié !
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4" />
+                    Copier
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Instructions for Creator */}
+          <div className="space-y-2 mb-4">
+            <p className="text-sm text-slate-400 font-medium">💡 Comment l'utiliser :</p>
+            <ul className="space-y-1.5 text-xs text-slate-500">
               <li className="flex items-start gap-2">
                 <span className="text-blue-400 mt-0.5">•</span>
-                <span>Les <strong className="text-slate-400">impressions</strong> sont comptées quand le lien est vu</span>
+                <span>Ajoute-le en <strong className="text-slate-400">premier commentaire</strong> de tes posts LinkedIn</span>
               </li>
-            )}
-            {trackClicks && (
               <li className="flex items-start gap-2">
                 <span className="text-blue-400 mt-0.5">•</span>
-                <span>Les <strong className="text-slate-400">clics</strong> sont comptés quand quelqu'un clique</span>
+                <span>Mets-le dans ta <strong className="text-slate-400">bio LinkedIn</strong> (section "À propos")</span>
               </li>
-            )}
-            {trackRevenue && (
               <li className="flex items-start gap-2">
                 <span className="text-blue-400 mt-0.5">•</span>
-                <span>Le <strong className="text-slate-400">CA</strong> est attribué via cookie de 30 jours 🍪</span>
+                <span>Partage-le en <strong className="text-slate-400">DM</strong> quand on te demande le produit</span>
               </li>
-            )}
-          </ul>
-        </div>
+            </ul>
+          </div>
+
+          {/* Warning about not modifying link */}
+          <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 mb-4">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-amber-200">
+                <strong>Important :</strong> Ne modifie pas ce lien ! Utilise-le tel quel pour que tes stats soient correctement comptabilisées.
+              </p>
+            </div>
+          </div>
+
+          {/* Footer with test link */}
+          <div className="flex items-center justify-end pt-4 border-t border-white/5">
+            <a
+              href={trackingUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition-colors"
+            >
+              <ExternalLink className="w-4 h-4" />
+              Tester le lien
+            </a>
+          </div>
+        </>
       )}
-
-      {/* Tracking Info */}
-      <div className="flex items-center justify-between pt-4 border-t border-white/5">
-        <div className="flex items-center gap-4 text-xs text-slate-500">
-          <span className="flex items-center gap-1">
-            <div className={`w-2 h-2 rounded-full ${trackImpressions ? 'bg-green-400' : 'bg-slate-600'}`} />
-            Impressions {trackImpressions ? 'ON' : 'OFF'}
-          </span>
-          <span className="flex items-center gap-1">
-            <div className={`w-2 h-2 rounded-full ${trackClicks ? 'bg-green-400' : 'bg-slate-600'}`} />
-            Clics {trackClicks ? 'ON' : 'OFF'}
-          </span>
-          <span className="flex items-center gap-1">
-            <div className={`w-2 h-2 rounded-full ${trackRevenue ? 'bg-green-400' : 'bg-slate-600'}`} />
-            CA {trackRevenue ? 'ON' : 'OFF'}
-          </span>
-        </div>
-
-        <a
-          href={trackingUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition-colors"
-        >
-          <ExternalLink className="w-4 h-4" />
-          Tester
-        </a>
-      </div>
     </div>
   );
 }

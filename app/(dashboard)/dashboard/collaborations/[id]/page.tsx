@@ -5,6 +5,7 @@ import { ArrowLeft, Building2, Users, MessageSquare, ExternalLink, CheckCircle2,
 import SubmitPostForm from '@/components/collaborations/submit-post-form';
 import PostCard from '@/components/collaborations/post-card';
 import TrackingLinkCardV2 from '@/components/collaborations/tracking-link-card-v2';
+import RevenueTrackingSetup from '@/components/collaborations/revenue-tracking-setup';
 import { getOrCreateTrackingLink } from './actions-v2';
 
 interface PageProps {
@@ -229,7 +230,7 @@ export default async function CollaborationDetailPage({ params }: PageProps) {
 
       {/* Tracking Link Section */}
       {trackingLink && collaboration.status === 'active' && (
-        <div className="mb-6">
+        <div className="mb-6 space-y-4">
           <TrackingLinkCardV2 
             hash={trackingLink.hash}
             impressions={impressions}
@@ -240,6 +241,11 @@ export default async function CollaborationDetailPage({ params }: PageProps) {
             trackClicks={trackingLink.track_clicks ?? true}
             trackRevenue={trackingLink.track_revenue ?? false}
           />
+          
+          {/* Revenue Tracking Setup Guide - Only for SaaS */}
+          {!isCreator && (
+            <RevenueTrackingSetup />
+          )}
         </div>
       )}
 

@@ -254,16 +254,16 @@ export async function getOrCreateTrackingLink(collaborationId: string) {
     return { error: 'Impossible de générer un lien unique' }
   }
 
-  // Create tracking link
+  // Create tracking link - ALWAYS track everything
   const { data: newLink, error } = await supabase
     .from('tracked_links')
     .insert({
       collaboration_id: collaborationId,
       hash: hash,
       destination_url: saasWebsite,
-      track_impressions: trackingConfig?.track_impressions ?? true,
-      track_clicks: trackingConfig?.track_clicks ?? true,
-      track_revenue: trackingConfig?.track_revenue ?? false,
+      track_impressions: true,  // Always ON
+      track_clicks: true,       // Always ON
+      track_revenue: true,      // Always ON
     })
     .select('id, hash, destination_url, track_impressions, track_clicks, track_revenue')
     .single()
