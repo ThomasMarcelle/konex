@@ -125,7 +125,7 @@ export async function validatePost(proofId: string) {
 
 /**
  * Generate or retrieve tracking link for a collaboration
- * This is called when viewing the collaboration page
+ * Format: /c/[CREATOR_ID]-[SAAS_ID]-[UNIQUE_HASH]
  */
 export async function getOrCreateTrackingLink(collaborationId: string) {
   const supabase = await createClient()
@@ -138,21 +138,22 @@ export async function getOrCreateTrackingLink(collaborationId: string) {
   // Check if tracking link already exists
   const { data: existingLink } = await supabase
     .from('tracked_links')
-    .select('id, hash, destination_url')
+    .select('id, hash, destination_url, track_impressions, track_clicks, track_revenue')
     .eq('collaboration_id', collaborationId)
     .single()
 
   if (existingLink) {
-    // Get click count
-    const { data: clicks } = await supabase
-      .from('link_clicks')
-      .select('id', { count: 'exact', head: true })
-      .eq('tracked_link_id', existingLink.id)
+    // Get metrics
+    const { data: metrics } = await supabase.rpc('get_collaboration_metrics', {
+      collab_id: collaborationId
+    }).single()
 
     return { 
       success: true, 
       link: existingLink,
-      clickCount: clicks || 0
+      impressions: metrics?.impressions || 0,
+      clicks: metrics?.clicks || 0,
+      revenue: metrics?.revenue || 0
     }
   }
 
@@ -162,12 +163,16 @@ export async function getOrCreateTrackingLink(collaborationId: string) {
     .select(`
       id,
       applications:application_id (
+        creator_id,
+        saas_id,
         creator_profiles:creator_id (
+          id,
           profiles:profile_id (
             full_name
           )
         ),
         saas_companies:saas_id (
+          id,
           company_name,
           website
         )
@@ -185,15 +190,43 @@ export async function getOrCreateTrackingLink(collaborationId: string) {
     return { error: 'Le SaaS n\'a pas de site web configuré' }
   }
 
+  // Get creator and SaaS IDs
+  const creatorId = (collaboration.applications as any)?.creator_id
+  const saasId = (collaboration.applications as any)?.saas_id
+
+  if (!creatorId || !saasId) {
+    return { error: 'Données de collaboration invalides' }
+  }
+
+  // Get SaaS tracking preferences
+  const { data: trackingConfig } = await supabase
+    .from('saas_tracking_config')
+    .select('track_impressions, track_clicks, track_revenue')
+    .eq('saas_id', saasId)
+    .single()
+
   // Get creator and SaaS names for readable hash
   const creatorName = (collaboration.applications as any)?.creator_profiles?.profiles?.full_name || 'creator'
   const saasName = (collaboration.applications as any)?.saas_companies?.company_name || 'saas'
 
-  // Create URL-friendly slugs
-  const creatorSlug = creatorName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-  const saasSlug = saasName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+  // Create URL-friendly slugs (lowercase, no spaces, no special chars)
+  const creatorSlug = creatorName
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove accents
+    .replace(/[^a-z0-9]+/g, '-')      // Replace non-alphanumeric with dashes
+    .replace(/^-|-$/g, '')            // Remove leading/trailing dashes
+    .substring(0, 20);                // Max 20 chars
 
-  // Generate unique hash with format: creator-saas-randomhash
+  const saasSlug = saasName
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .substring(0, 20);
+
+  // Generate unique hash with format: creator-name-saas-name-randomhash
   let hash = ''
   let isUnique = false
   let attempts = 0
@@ -228,8 +261,11 @@ export async function getOrCreateTrackingLink(collaborationId: string) {
       collaboration_id: collaborationId,
       hash: hash,
       destination_url: saasWebsite,
+      track_impressions: trackingConfig?.track_impressions ?? true,
+      track_clicks: trackingConfig?.track_clicks ?? true,
+      track_revenue: trackingConfig?.track_revenue ?? false,
     })
-    .select('id, hash, destination_url')
+    .select('id, hash, destination_url, track_impressions, track_clicks, track_revenue')
     .single()
 
   if (error) {
@@ -239,7 +275,9 @@ export async function getOrCreateTrackingLink(collaborationId: string) {
   return { 
     success: true, 
     link: newLink,
-    clickCount: 0
+    impressions: 0,
+    clicks: 0,
+    revenue: 0
   }
 }
 

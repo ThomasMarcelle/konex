@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { ArrowLeft, Building2, Users, MessageSquare, ExternalLink, CheckCircle2, Clock, Plus } from 'lucide-react';
 import SubmitPostForm from '@/components/collaborations/submit-post-form';
 import PostCard from '@/components/collaborations/post-card';
+import TrackingLinkCardV2 from '@/components/collaborations/tracking-link-card-v2';
+import { getOrCreateTrackingLink } from './actions-v2';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -115,6 +117,13 @@ export default async function CollaborationDetailPage({ params }: PageProps) {
   const pendingPosts = posts.filter((p) => !p.validated);
   const validatedPosts = posts.filter((p) => p.validated);
 
+  // Get or create tracking link for this collaboration
+  const trackingLinkResult = await getOrCreateTrackingLink(collaboration.id);
+  const trackingLink = trackingLinkResult.success ? trackingLinkResult.link : null;
+  const impressions = trackingLinkResult.success ? (trackingLinkResult.impressions as number) : 0;
+  const clicks = trackingLinkResult.success ? (trackingLinkResult.clicks as number) : 0;
+  const revenue = trackingLinkResult.success ? (trackingLinkResult.revenue as number) : 0;
+
   return (
     <div className="max-w-4xl">
       {/* Back Link */}
@@ -217,6 +226,31 @@ export default async function CollaborationDetailPage({ params }: PageProps) {
           </div>
         </div>
       </div>
+
+      {/* Tracking Link Section */}
+      {trackingLink && collaboration.status === 'active' && (
+        <div className="mb-6">
+          <TrackingLinkCardV2 
+            hash={trackingLink.hash}
+            impressions={impressions}
+            clicks={clicks}
+            revenue={revenue}
+            isCreator={isCreator}
+            trackImpressions={trackingLink.track_impressions ?? true}
+            trackClicks={trackingLink.track_clicks ?? true}
+            trackRevenue={trackingLink.track_revenue ?? false}
+          />
+        </div>
+      )}
+
+      {/* Error message if tracking link couldn't be created */}
+      {!trackingLink && trackingLinkResult.error && (
+        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 mb-6">
+          <p className="text-sm text-red-400">
+            ⚠️ {trackingLinkResult.error}
+          </p>
+        </div>
+      )}
 
       {/* Submit Post Section (Creator only) */}
       {isCreator && collaboration.status === 'active' && (
